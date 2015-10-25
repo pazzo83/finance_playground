@@ -24,6 +24,13 @@ type StockOption
   end
 end
 
+# define pricing methods
+abstract BinomialMethod
+
+type BinomialNormal <: BinomialMethod end
+type BinomialCRR <: BinomialMethod end
+type BinomialLR <: BinomialMethod end
+
 # build binomial tree
 # function build_tree(s_opt::StockOption)
 #   u = 1 + s_opt.pu
@@ -93,11 +100,42 @@ function option_value_tree_matrix(K::Float64, n::Int64, binom::Array, qu::Float6
   return payoffs
 end
 
-function price(s_opt::StockOption)
-  u = 1 + s_opt.pu
-  d = 1 - s_opt.pd
-  qu = (exp((s_opt.r - s_opt.div) * s_opt.dt) - d) / (u - d)
+# diff setup params for diff methods
+function setup_params(s::StockOption, m::BinomialMethod)
+  u = 1 + s.pu
+  d = 1 - s.pd
+  qu = (exp((s.r - s.div) * s.dt) - d) / (u - d)
   qd = 1 - qu
+  return u, d, qu, qd
+end
+
+function setup_params(s::StockOption, m::BinomialCRR)
+  u = exp(s.sigma * sqrt(s.dt))
+  d = 1.0 / u
+  qu = (exp((s.r - s.div) * s.dt) - d) / (u - d)
+  qd = 1.0 - qu
+
+  return u, d, qu, qd
+end
+
+function setup_params(s::StockOption, m::BinomialLR)
+  odd_N = isodd(s.N) ? s.N : s.N + 1
+  d1 = (log(s.S0 / s.K) + ((s.r - s.div) + (s.sigma ^ 2) / 2.0) * s.T) / (s.sigma * sqrt(s.T))
+  d2 = (log(s.S0 / s.K) + ((s.r - s.div) - (s.sigma ^ 2) / 2.0) * s.T) / (s.sigma * sqrt(s.T))
+
+  pp_2_inversion(z::Float64, n::Int64) = 0.5 + copysign(1, z) * sqrt(0.25 - 0.25 * exp( -((z / (n + 1.0 / 3.0 + 0.1 / (n + 1.0))) ^ 2) * (n + 1.0 / 6.0)))
+  pbar = pp_2_inversion(d1, odd_N)
+  p = pp_2_inversion(d2, odd_N)
+  u = 1.0 / s.df * pbar / p
+  d = (1 / s.df - p * u) / (1 - p)
+  qu = p
+  qd = 1 - p
+
+  return u, d, qu, qd
+end
+
+function price(s_opt::StockOption; method::BinomialMethod = BinomialNormal())
+  u, d, qu, qd = setup_params(s_opt, method)
 
   binom_tree = build_tree_matrix(s_opt.S0, s_opt.N, u, d)
   payoffs = option_value_tree_matrix(s_opt.K, s_opt.N, binom_tree, qu, qd, s_opt.df, s_opt.is_call, s_opt.is_euro)
