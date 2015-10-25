@@ -44,9 +44,9 @@ class BinomialTreeOption(StockOption):
             payoffs = (payoffs[:-1] * self.qu + payoffs[1:] * self.qd) * self.df
             print('payoffs now ', payoffs)
 
-        if not self.is_european:
-            payoffs = self.__check_early_exercise__(payoffs, i)
-            print('payoffs american ', payoffs)
+            if not self.is_european:
+                payoffs = self.__check_early_exercise__(payoffs, i)
+                print('payoffs american ', payoffs)
 
         return payoffs
 
