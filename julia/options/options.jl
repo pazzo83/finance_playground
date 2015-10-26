@@ -79,6 +79,8 @@ function build_tree_matrix(S0::Float64, n::Int64, u::Float64, d::Float64)
     stockTree[i, j] = S0 * u ^ (j-1) * d ^ (i - 1)
   end
 
+  # println(stockTree)
+
   return stockTree
 end
 
@@ -97,11 +99,13 @@ function option_value_tree_matrix(K::Float64, n::Int64, binom::Array, qu::Float6
     end
   end
 
+  # println(payoffs)
+
   return payoffs
 end
 
 # diff setup params for diff methods
-function setup_params(s::StockOption, m::BinomialMethod)
+function setup_params(s::StockOption, m::BinomialNormal)
   u = 1 + s.pu
   d = 1 - s.pd
   qu = (exp((s.r - s.div) * s.dt) - d) / (u - d)
@@ -140,5 +144,14 @@ function price(s_opt::StockOption; method::BinomialMethod = BinomialNormal())
   binom_tree = build_tree_matrix(s_opt.S0, s_opt.N, u, d)
   payoffs = option_value_tree_matrix(s_opt.K, s_opt.N, binom_tree, qu, qd, s_opt.df, s_opt.is_call, s_opt.is_euro)
 
-  return payoffs[1,1]
+  # calcualte delta
+  delta = (payoffs[1,3] - payoffs[3,1]) / (binom_tree[1,3] - binom_tree[3,1])
+
+  # calcualte gamma
+  gamma = (((payoffs[1,3] - payoffs[2,2]) / (binom_tree[1,3] - binom_tree[2,2])) - ((payoffs[2,2] - payoffs[3,1]) / (binom_tree[2,2] - binom_tree[3,1]))) / (0.5 * (binom_tree[1,3] - binom_tree[3,1]))
+
+  # calculate theta
+  theta = (payoffs[2,2] - payoffs[1,1]) / (2*s_opt.dt)
+
+  return payoffs[1,1], delta, gamma, theta
 end
