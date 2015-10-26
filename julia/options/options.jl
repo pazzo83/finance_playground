@@ -104,6 +104,31 @@ function option_value_tree_matrix(K::Float64, n::Int64, binom::Array, qu::Float6
   return payoffs
 end
 
+# trinomial tree
+function build_tri_tree_matrix(S0::Float64, n::Int64, u::Float64, d::Float64)
+  stock_tri_tree = zeros(2 * n + 1, n + 1)
+  stock_tri_tree[n + 1, 1] = S0
+
+  for j=2:n + 1, i=n-j+2:n+j
+    stock_tri_tree[i, j] = S0 * u ^ (n+1-i)
+  end
+
+  return stock_tri_tree
+end
+
+function option_value_tri_tree_matrix(K::Float64, n::Int64, trinom::Array, qu::Float64, qd::Float64, qm::Float64, df::Float64, is_call::Bool, is_euro::Bool)
+  payoffs = zeros(2 * n + 1, n + 1)
+  for i = 1:2 * n + 1
+    payoffs[i, n + 1] = max(0, is_call ? trinom[i, n + 1] - K : K - trinom[i, n + 1])
+  end
+
+  for j = n:-1:1, i = n-j+2:n+j
+    payoffs[i, j] = (qu * payoffs[i - 1, j + 1] + qm * payoffs[i, j + 1] + qd * payoffs[i + 1, j + 1]) * df
+  end
+
+  return payoffs
+end
+
 # diff setup params for diff methods
 function setup_params(s::StockOption, m::BinomialNormal)
   u = 1 + s.pu
@@ -154,4 +179,19 @@ function price(s_opt::StockOption; method::BinomialMethod = BinomialNormal())
   theta = (payoffs[2,2] - payoffs[1,1]) / (2*s_opt.dt)
 
   return payoffs[1,1], delta, gamma, theta
+end
+
+function price_tri(s_opt::StockOption)
+  u = exp(s_opt.sigma * sqrt(2.0 * s_opt.dt))
+  d = 1.0 / u
+
+  qu = (exp((s_opt.r - s_opt.div)*s_opt.dt/2.0) - exp(-s_opt.sigma * sqrt(s_opt.dt/2.0)))^2/(exp(s_opt.sigma * sqrt(s_opt.dt/2.0)) - exp(-s_opt.sigma * sqrt(s_opt.dt/2.0)))^2
+  qd = (exp(s_opt.sigma * sqrt(s_opt.dt/2.0)) - exp((s_opt.r - s_opt.div) * s_opt.dt/2.0))^2/(exp(s_opt.sigma * sqrt(s_opt.dt/2.0)) - exp(-s_opt.sigma * sqrt(s_opt.dt/2.0)))^2
+  qm = 1 - qu - qd
+
+  tri_tree = build_tri_tree_matrix(s_opt.S0, s_opt.N, u, d)
+
+  payoffs = option_value_tri_tree_matrix(s_opt.K, s_opt.N, tri_tree, qu, qd, qm, s_opt.df, s_opt.is_call, s_opt.is_euro)
+  
+  return payoffs[s_opt.N + 1, 1]
 end
