@@ -129,6 +129,37 @@ function option_value_tri_tree_matrix(K::Float64, n::Int64, trinom::Array, qu::F
   return payoffs
 end
 
+# binomial lattice
+function build_lattice(S0::Float64, n::Int64, u::Float64, d::Float64)
+  stock_lattice = zeros(2 * n + 1)
+
+  # initial lattice
+  stock_lattice[1] = S0 * u^n
+
+  # fill the rest
+  for i = 2:length(stock_lattice)
+    stock_lattice[i] = stock_lattice[i - 1] * d
+  end
+
+  return stock_lattice
+end
+
+function option_value_lattice(K::Float64, n::Int64, latt::Array, qu::Float64, qd::Float64, df::Float64, is_call::Bool, is_euro::Bool)
+  # get odd stock prices
+  odd_nodes = latt[1:2:end]
+  payoffs = zeros(length(odd_nodes), n + 1)
+  for i = 1:length(odd_nodes)
+    payoffs[i, n + 1] = max(0, is_call ? odd_nodes[i] - K : K - odd_nodes[i])
+  end
+
+  # similar approach to trinomial payoff
+  for j = n:-1:1, i = 1:n
+    payoffs[i, j] = (qu * payoffs[i, j + 1] + qd * payoffs[i + 1, j + 1]) * df
+  end
+
+  return payoffs
+end
+
 # diff setup params for diff methods
 function setup_params(s::StockOption, m::BinomialNormal)
   u = 1 + s.pu
@@ -192,6 +223,16 @@ function price_tri(s_opt::StockOption)
   tri_tree = build_tri_tree_matrix(s_opt.S0, s_opt.N, u, d)
 
   payoffs = option_value_tri_tree_matrix(s_opt.K, s_opt.N, tri_tree, qu, qd, qm, s_opt.df, s_opt.is_call, s_opt.is_euro)
-  
+
   return payoffs[s_opt.N + 1, 1]
+end
+
+function price_binom_lattice(s_opt::StockOption)
+  # use binomial crr
+  u, d, qu, qd = setup_params(s_opt, BinomialCRR())
+
+  binom_lattice = build_lattice(s_opt.S0, s_opt.N, u, d)
+  payoffs = option_value_lattice(s_opt.K, s_opt.N, binom_lattice, qu, qd, s_opt.df, s_opt.is_call, s_opt.is_euro)
+
+  return payoffs[1,1]
 end
