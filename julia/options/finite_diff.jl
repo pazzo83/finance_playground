@@ -80,7 +80,7 @@ function price(fd::FiniteDifference)
 
   # build the diagonals
   # coeffs = diagm(a[3:fd.M], -1) + diagm(b[2:fd.M]) + diagm(c[c:fd.M - 1], 1)
-  coeffs = TriDiagonal(a[3:fd.M], b[2:fd.M], c[2:fd:M - 1])
+  coeffs = Tridiagonal(a[3:fd.M], b[2:fd.M], c[2:fd.M - 1])
 
   # use LU factorization to solve linear systems of equations
   Alu = lufact(coeffs)
@@ -114,8 +114,8 @@ function price_cn(fd::FiniteDifference)
   # build diagonal grids
   # M1 = -diagm(alpha[3:fd.M], -1) + diagm(1 - beta[2:fd.M]) - diagm(gamma[2:fd.M - 1], 1)
   # M2 = diagm(alpha[3:fd.M], -1) + diagm(1 + beta[2:fd.M]) + diagm(gamma[2:fd.M - 1], 1)
-  M1 = TriDiagonal(-alpha[3:fd.M], 1 - beta[2:fd.M], -gamma[2:fd.M - 1])
-  M2 = TriDiagonal(alpha[3:fd.M], 1 + beta[2:fd.M], gamma[2:fd.M - 1])
+  M1 = Tridiagonal(-alpha[3:fd.M], 1 - beta[2:fd.M], -gamma[2:fd.M - 1])
+  M2 = Tridiagonal(alpha[3:fd.M], 1 + beta[2:fd.M], gamma[2:fd.M - 1])
 
   # LU factorization to solve linear systems of equations
   Alu = lufact(M1)
