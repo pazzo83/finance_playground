@@ -35,7 +35,7 @@ function linalg_solve_ch()
   return CH \ B
 end
 
-function jacobi{T}(A::Matrix{T}, B::Vector{T}, n::Int, tol::Float64 = 1e-10)
+function jacobi{T <: Real}(A::Matrix{T}, B::Vector{T}, n::Int, tol::Float64 = 1e-10)
   x = zeros(T, length(B))
 
   for i = 1:n
@@ -45,6 +45,26 @@ function jacobi{T}(A::Matrix{T}, B::Vector{T}, n::Int, tol::Float64 = 1e-10)
       s2 = A[i, i+1:end] * x[i+1:end]
       x_new[i] = (B[i] - s1[1] - s2[1]) / A[i, i]
     end
+
+    if isapprox(x, x_new, rtol = tol)
+      break
+    end
+
+    x = x_new
+  end
+
+  return x
+end
+
+function gauss{T <: Real}(A::Matrix{T}, B::Vector{T}, n::Int, tol::Float64 = 1e-10)
+  L = tril(A)
+  U = A - L
+  L_inv = inv(L)
+  x = zeros(B)
+
+  for i = 1:n
+    Ux = U * x
+    x_new = L_inv * (B - Ux)
 
     if isapprox(x, x_new, rtol = tol)
       break
