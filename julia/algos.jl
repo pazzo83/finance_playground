@@ -92,3 +92,125 @@ function naive_max_perm(M::Vector{Int}, A::Set{Int} = Set{Int}())
 
   return A # all usefull, return all
 end
+
+const G = rand(0:1, 100, 100)
+
+function naive_celeb(G::Matrix{Int})
+  n, k = size(G)
+
+  for i = 1:k
+    retVal = 0
+    for j = 1:n
+      if j == i
+        continue
+      end
+
+      if G[i, j] > 0
+        retVal = -1
+        break
+      end
+
+      if G[j, i] == 0
+        retVal = -1
+        break
+      end
+    end
+
+    if retVal == 0
+      return i
+    end
+  end
+
+  return -1
+end
+
+function celeb(G::Matrix{Int})
+  n = size(G)[1]
+
+  u, v = 1, 2 # The first two
+
+  for c = 3:n+1 # Others to check
+    if G[u, v] > 0 # u knows v?
+      u = c # replace u
+    else
+      v = c # replace v
+    end
+  end
+
+  if u == n+1 # u was replaced last
+    c = v # use v
+  else
+    c = u # otherwise, u i s a candidate
+  end
+
+  retVal = 0
+  for v = 1:n # for everyone else...
+    if c == v # same person?
+      continue # Skip
+    end
+
+    if G[c, v] > 0 # candidate knows other
+      retVal = -1
+      break
+    end
+
+    if G[v, c] == 0 # Other doesn't know candidate
+      retVal = -1
+      break
+    end
+  end
+
+  if retVal == -1
+    return -1
+  else
+    return c
+  end
+end
+
+function naive_topsort(G::Dict{Int, IntSet}, S::IntSet = IntSet())
+  if isempty(S)
+    S = IntSet(keys(G)) # Default: ALL nodes
+  end
+
+  if length(S) == 1
+    return collect(S) # Base case, single node
+  end
+
+  v = pop!(S) # Reduction: remove a node
+  seq = naive_topsort(G, S) # recursion (assumption), n - 1
+  min_i = 1
+  for i in eachindex(seq)
+    if v in G[seq[i]]
+      min_i = i + 1 # after all dependencies
+    end
+  end
+
+  insert!(seq, min_i, v)
+  return seq
+end
+
+function topsort{T}(G::Dict{T, Set{T}})
+  count = Dict{T, Int}([u => 0 for u in keys(G)]) # The in-degree for each node
+  for u in keys(G)
+    for v in G[u]
+      count[v] += 1 # Count every valid in-edge
+    end
+  end
+
+  count_zero(i::T, ::Set{T}) = count[i] == 0
+  Q = T[u for (u, i) in filter(count_zero, G)] # Valid initial nodes
+  S = T[] # result array
+
+  while ~isempty(Q) # while we have start nodes...
+    u = pop!(Q) # pick one
+    push!(S, u) # use it as the first of the rest of our result
+    for v in G[u]
+      count[v] -= 1 # "uncount" its out-edges
+      if count[v] == 0 # new valid start node?
+        push!(Q, v) # Deal with them next
+      end
+    end
+  end
+
+  return S
+end
