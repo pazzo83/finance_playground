@@ -1,5 +1,6 @@
 using DataFrames
 using TimeSeries
+using HypothesisTests
 
 function dN(x::Float64, mu::Float64, sigma::Float64)
   z = (x - mu) / sigma
@@ -50,4 +51,22 @@ function simulate_gbm()
   gbm[:rea_vol] = sqrt(gbm[:rea_var])
 
   return gbm
+end
+
+function print_stats(data::DataFrame)
+  ht = OneSampleTTest(data[:returns]) # for p value
+  println("RETURN SAMPLE STATISTICS")
+  println("----------------------------------------")
+  println(@sprintf("Mean of Daily  Log Returns %9.6f", mean(data[:returns])))
+  println(@sprintf("Std  of Daily  Log Returns %9.6f", std(data[:returns])))
+  println(@sprintf("Mean of Annua. Log Returns %9.6f", mean(data[:returns]) * 252))
+  println(@sprintf("Std  of Annua. Log Returns %9.6f", std(data[:returns]) * sqrt(252)))
+  println("----------------------------------------")
+  println(@sprintf("Skew of Sample Log Returns %9.6f", mean(data[:returns])))
+  println(@sprintf("Kurt of Sample Log Returns %9.6f", kurtosis(data[:returns])))
+  println("----------------------------------------")
+  println(@sprintf("Normal test p-value        %9.6f", pvalue(ht)))
+  println("----------------------------------------")
+  println(@sprintf("Realized Volatility        %9.6f", data[:rea_vol][end]))
+  println(@sprintf("Realized Variance          %9.6f", data[:rea_var][end]))
 end

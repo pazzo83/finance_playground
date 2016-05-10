@@ -1,6 +1,7 @@
 using Base.Dates
 using Requests
 using DataFrames
+using TimeSeries
 
 abstract DataSource
 immutable YahooDataSource <: DataSource end
@@ -65,7 +66,7 @@ immutable YahooDataSource <: DataSource end
 
 function get_historical_data(::YahooDataSource, startDate::Date, endDate::Date, symbol::AbstractString)
   startDate < endDate || error("dates are wrong")
-  
+
   url = "http://ichart.finance.yahoo.com/table.csv?s="
 
   query = "$symbol&d=$(Int(Month(endDate)) - 1)&e=$(Int(Day(endDate)))&f=$(Int(Year(endDate)))&g=d&a=$(Int(Month(startDate)) - 1)&b=$(Int(Day(startDate)))&c=$(Int(Year(startDate)))"
@@ -88,4 +89,20 @@ function get_historical_data(::YahooDataSource, startDate::Date, endDate::Date, 
   df[:Date] = Date(df[:Date])
 
   return df
+end
+
+function read_dax_data()
+  DAX = get_historical_data(YahooDataSource(), Date(2004, 9, 30), Date(2014, 9, 30), "^GDAXI")
+
+  # convert to time series for calc
+  ts = TimeArray(DAX[:Date].data, DAX[:Adj_Close], ["returns"])
+  tsCalc = log(ts["returns"] ./ lag(ts["returns"], padding=true))
+  DAX[:returns] = tsCalc.values
+  DAX[isnan(DAX[:returns]), :returns] = 0.0
+
+  # Realized volatility (e.g. as defined for variance swaps)
+  DAX[:rea_var] = 252 * cumsum(DAX[:returns] .^ 2) ./ range(1, size(DAX)[1])
+  DAX[:rea_vol] = sqrt(DAX[:rea_var])
+
+  return DAX
 end
